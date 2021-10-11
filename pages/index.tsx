@@ -1,72 +1,223 @@
-import type { NextPage } from 'next'
-import Head from 'next/head'
-import Image from 'next/image'
-import styles from '../styles/Home.module.css'
+import type { GetStaticProps } from "next";
+import React, { useEffect, useState } from "react";
+import Head from "next/head";
+import Image from "next/image";
+import { useRouter } from "next/router";
+// Services
+import { getList } from "@services/requests";
+// Hooks
+import useDebouncer from "@hook/useDebouncer";
+// Utils
+import { convertUpperCaseFirstLetter } from "@utils/covertUpperFirstLetter";
+// Models
+import { Job } from "models/job";
+// Images
+import heroImage from "@public/backgroundImg.png";
+// Components
+import { Hero } from "@components/hero";
+import { Search } from "@components/search";
+import { Location } from "@components/location";
+// Styled components
+import {
+  Container,
+  SearchContainer,
+  Title,
+  Footer,
+} from "@styles/shared/index";
 
-const Home: NextPage = () => {
+type HomeProps = {
+  jobs: Job[];
+  pages: number;
+};
+
+const defaultLocation = "New York, NY";
+
+export const getStaticProps: GetStaticProps = async () => {
+  const jobs = await getList(
+    process.env.API_URL || "",
+    "1",
+    `&location=${defaultLocation}`
+  );
+  return {
+    props: {
+      jobs: jobs.results,
+      pages: jobs.page_count > 99 ? 99 : jobs.page_count,
+    },
+  };
+};
+
+const Home = ({ jobs, pages }: HomeProps) => {
+  // STATES
+  const [jobsData, setJobsData] = useState({
+    jobs,
+    pages: pages,
+    activePage: 1,
+    defaultQuery: `&location=${defaultLocation}`,
+    checked: "New York, NY",
+  });
+  const [loading, setLoading] = useState(false);
+  const [handleInput, setHandleInput] = useState({
+    inputSearch: "",
+    buttonSearch: "",
+  });
+  const router = useRouter();
+
+  // SEARCH BY RADIO BUTTON
+  const handleRadioValue = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const location = e.currentTarget.value;
+    setLoading(true);
+    try {
+      const jobs = await getList(
+        process.env.NEXT_PUBLIC_API_URL || "",
+        "1",
+        `&location=${location}`
+      );
+      setJobsData({
+        jobs: jobs.results,
+        pages: jobs.page_count > 99 ? 99 : jobs.page_count,
+        activePage: 1,
+        defaultQuery: `&location=${location}`,
+        checked: location,
+      });
+      setLoading(false);
+    } catch (error) {
+      console.log(error);
+      setLoading(false);
+    }
+  };
+
+  // GET MORE DATA BY PAGE
+  const handlePaginationChange = async (activePage: number) => {
+    if (activePage) {
+      setLoading(true);
+      try {
+        const jobs = await getList(
+          process.env.NEXT_PUBLIC_API_URL || "",
+          activePage.toString(),
+          jobsData.defaultQuery
+        );
+        setJobsData({
+          ...jobsData,
+          jobs: jobs.results,
+          pages: jobs.page_count > 99 ? 99 : jobs.page_count,
+          activePage,
+        });
+        setLoading(false);
+      } catch (error) {
+        console.log(error);
+        setLoading(false);
+      }
+    }
+  };
+
+  // SEARCH BY CATEGORY OR COMPANIES
+  const handleInputButtonSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setHandleInput({
+      ...handleInput,
+      buttonSearch: value,
+    });
+  };
+  const handleButtonSearch = async () => {
+    if (handleInput.buttonSearch !== "") {
+      const text = convertUpperCaseFirstLetter(handleInput.buttonSearch);
+      try {
+        setLoading(true);
+        const jobs = await getList(
+          process.env.NEXT_PUBLIC_API_URL || "",
+          "1",
+          `&category=${text}`
+        );
+        setJobsData({
+          ...jobsData,
+          jobs: jobs.results,
+          pages: jobs.page_count > 99 ? 99 : jobs.page_count,
+          activePage: 1,
+          defaultQuery: `&location=${text}`,
+        });
+        setLoading(false);
+      } catch (error) {
+        console.log(error);
+        setLoading(false);
+      }
+    }
+  };
+
+  // SEARCH BY CITY
+  const handleInputSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setHandleInput({
+      ...handleInput,
+      inputSearch: e.target.value,
+    });
+  };
+  const searchCity = useDebouncer(handleInput.inputSearch, 500);
+  useEffect(() => {
+    if (searchCity !== "") {
+      setLoading(true);
+      getList(
+        process.env.NEXT_PUBLIC_API_URL || "",
+        "1",
+        `&location=${searchCity}`
+      )
+        .then((jobs) => {
+          setJobsData({
+            ...jobsData,
+            jobs: jobs.results,
+            pages: jobs.page_count > 99 ? 99 : jobs.page_count,
+            activePage: 1,
+            defaultQuery: `&location=${searchCity}`,
+          });
+          setLoading(false);
+        })
+        .catch((error) => {
+          console.log(error);
+          setLoading(false);
+        });
+    }
+  }, [searchCity]);
+
+  // JOB DETAIL
+  const handleJobDetail = (id: number) => router.push(`/job/${id}`);
+
   return (
-    <div className={styles.container}>
+    <div>
       <Head>
         <title>Create Next App</title>
         <meta name="description" content="Generated by create next app" />
         <link rel="icon" href="/favicon.ico" />
       </Head>
-
-      <main className={styles.main}>
-        <h1 className={styles.title}>
-          Welcome to <a href="https://nextjs.org">Next.js!</a>
-        </h1>
-
-        <p className={styles.description}>
-          Get started by editing{' '}
-          <code className={styles.code}>pages/index.js</code>
-        </p>
-
-        <div className={styles.grid}>
-          <a href="https://nextjs.org/docs" className={styles.card}>
-            <h2>Documentation &rarr;</h2>
-            <p>Find in-depth information about Next.js features and API.</p>
-          </a>
-
-          <a href="https://nextjs.org/learn" className={styles.card}>
-            <h2>Learn &rarr;</h2>
-            <p>Learn about Next.js in an interactive course with quizzes!</p>
-          </a>
-
-          <a
-            href="https://github.com/vercel/next.js/tree/master/examples"
-            className={styles.card}
-          >
-            <h2>Examples &rarr;</h2>
-            <p>Discover and deploy boilerplate example Next.js projects.</p>
-          </a>
-
-          <a
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-            className={styles.card}
-          >
-            <h2>Deploy &rarr;</h2>
-            <p>
-              Instantly deploy your Next.js site to a public URL with Vercel.
-            </p>
-          </a>
-        </div>
-      </main>
-
-      <footer className={styles.footer}>
-        <a
-          href="https://vercel.com?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Powered by{' '}
-          <span className={styles.logo}>
-            <Image src="/vercel.svg" alt="Vercel Logo" width={72} height={16} />
-          </span>
-        </a>
-      </footer>
+      <Container>
+        <Title size="md">
+          <strong>themuse </strong>Jobs
+        </Title>
+        <Hero>
+          <Image layout="fill" src={heroImage} alt="hero-image" />
+          <SearchContainer>
+            <Search
+              buttonSearch={handleInput.buttonSearch}
+              handleInputButtonSearch={handleInputButtonSearch}
+              handleButtonSearch={handleButtonSearch}
+            />
+          </SearchContainer>
+        </Hero>
+        <Location
+          handleRadioValue={handleRadioValue}
+          handlePaginationChange={handlePaginationChange}
+          handleInputSearch={handleInputSearch}
+          handleJobDetail={handleJobDetail}
+          inputSearch={handleInput.inputSearch}
+          loading={loading}
+          checked={jobsData.checked}
+          jobs={jobsData.jobs}
+          pages={jobsData.pages}
+          activePage={jobsData.activePage}
+        />
+        <Footer>
+          created by <strong>gbdeveloper</strong> - devChallenges.io
+        </Footer>
+      </Container>
     </div>
-  )
-}
+  );
+};
 
-export default Home
+export default Home;

@@ -1,9 +1,17 @@
+@import url("https://fonts.googleapis.com/css2?family=Itim&display=swap");
+
 html,
 body {
+  min-width: 250px;
   padding: 0;
   margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-    Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
+  font-family: "Itim", cursive !important;
+  color: #78909c !important;
+  background: #eceff1 !important;
+}
+
+p {
+  margin: 0;
 }
 
 a {
